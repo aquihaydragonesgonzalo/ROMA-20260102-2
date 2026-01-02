@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Roma 2026</title>
+    <title>Roma 2026 | Guía PWA</title>
     
     <!-- PWA Primary Meta Tags -->
     <meta name="theme-color" content="#991B1B">
@@ -13,12 +13,6 @@
     <meta name="apple-mobile-web-app-title" content="Roma 2026">
     <meta name="description" content="Guía personalizada para la escala en Roma 2026">
     
-    <!-- Evitar caché agresiva en el index para facilitar actualizaciones en GH Pages -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-
-    <!-- Rutas relativas para GitHub Pages -->
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjMqIMsVcH4cJyBPns11EXgA9GU2G_GIKn8VZZ1xZdjE0YcbKxgP9RubrKKajMFpYoXOkkaRozSncgrDKTpgqR8rEJaRg6EabSfiifPpqA2YjgZ-n1MJgFjRgbM8XFMjRfU67P3XOM3gg6fOi-ffux-i08-BgUE69iuYzbNX-eeqrjQhI6LWK9lBvwSTno/s320/ROMA%20TRAVEL.jpg">
 
@@ -46,26 +40,34 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .leaflet-bottom { bottom: 85px !important; }
         
-        /* Loader de sistema */
         #initial-loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #991B1B; display: flex; align-items: center; justify-content: center;
             z-index: 9999; transition: opacity 0.4s ease-out;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @keyframes pulse-red {
+          0% { box-shadow: 0 0 0 0 rgba(153, 27, 27, 0.7); }
+          70% { box-shadow: 0 0 0 10px rgba(153, 27, 27, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(153, 27, 27, 0); }
+        }
     </style>
 
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="importmap">
-    {
-      "imports": {
-        "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-        "recharts": "https://esm.sh/recharts@^3.6.0",
-        "react/": "https://esm.sh/react@^19.2.3/",
-        "react": "https://esm.sh/react@^19.2.3",
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-        "leaflet": "https://esm.sh/leaflet@^1.9.4"
-      }
-    }
-    </script>
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react",
+    "recharts": "https://esm.sh/recharts@2.13.0?external=react",
+    "leaflet": "https://esm.sh/leaflet@1.9.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
 </head>
 <body>
     <div id="initial-loader">
@@ -74,38 +76,409 @@
             <p style="font-weight: bold; letter-spacing: 1.5px; font-size: 11px; text-transform: uppercase; opacity: 0.8;">Iniciando Guía Roma</p>
         </div>
     </div>
-    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 
     <div id="root"></div>
     
-    <script>
-        // Gestión del loader
-        window.addEventListener('load', () => {
-            const loader = document.getElementById('initial-loader');
-            if (loader) {
-                setTimeout(() => {
-                    loader.style.opacity = '0';
-                    setTimeout(() => loader.remove(), 400);
-                }, 300);
-            }
-        });
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-        // Registro de Service Worker optimizado para subcarpetas (GitHub Pages)
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useMemo, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            CalendarClock, Map as MapIcon, Wallet, BookOpen, Anchor, 
+            Headphones, X, Play, Square, Navigation, CheckCircle2, 
+            Circle, MapPin, AlertTriangle, Clock, ExternalLink, AlertCircle,
+            Send, Volume2, Languages, PhoneCall, Thermometer, TrendingDown, Info, ArrowRight
+        } from 'lucide-react';
+        import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+
+        // --- CONSTANTES (Desde constants.ts) ---
+        const SHIP_DEPARTURE_TIME = "19:00";
+        const SHIP_ONBOARD_TIME = "18:30";
+        const DATE_OF_VISIT = "2026-04-16";
+
+        const COORDS = {
+            CIVITAVECCHIA_DOCK: { lat: 42.097499, lng: 11.788778 },
+            LARGODELAPACE: { lat: 42.096385, lng: 11.789507 },
+            STAZIONE_CIVITAVECCHIA: { lat: 42.087946, lng: 11.7983 },
+            TERMINI: { lat: 41.9009, lng: 12.5020 },
+            COLOSSEO: { lat: 41.890246, lng: 12.492374 },
+            ARCO_CONSTANTINO: { lat: 41.8898, lng: 12.4905 },
+            FORI_IMPERIALI: { lat: 41.8925, lng: 12.4860 },
+            CAMPIDOGLIO: { lat: 41.8933, lng: 12.4828 },
+            VENEZIA: { lat: 41.8958, lng: 12.4825 },
+            VITTORIANO: { lat: 41.8946, lng: 12.4829 },
+            TREVI: { lat: 41.9009, lng: 12.4833 },
+            PANTHEON: { lat: 41.8986, lng: 12.4769 },
+            NAVONA: { lat: 41.8992, lng: 12.4731 },
+            SANT_ANGELO: { lat: 41.9031, lng: 12.4663 },
+            S_PIETRO: { lat: 41.9022, lng: 12.4539 },
+            STAZIONE_S_PIETRO: { lat: 41.896275, lng: 12.454727 }
+        };
+
+        const GPX_WAYPOINTS = [
+            { name: "Vista del Foro Romano", lat: 41.891274, lng: 12.490416 },
+            { name: "Escaleras Campidoglio", lat: 41.89401, lng: 12.483923 },
+            { name: "Loba Capitulina", lat: 41.893287, lng: 12.483649 },
+            { name: "Coloso de Constantino", lat: 41.892406, lng: 12.481458 },
+            { name: "Escalinata Vittoriano", lat: 41.89543, lng: 12.482704 },
+            { name: "Columna de Trajano", lat: 41.89581, lng: 12.48427 },
+            { name: "Metro Colosseo", lat: 41.891277, lng: 12.491309 }
+        ];
+
+        const ROMAN_WALK_TRACK = [
+            [41.891218, 12.491383], [41.891155, 12.491916], [41.891097, 12.491915], [41.891072, 12.491915], [41.890944, 12.491915], [41.890966, 12.492103], [41.890971, 12.492242], [41.890964, 12.492358], [41.890942, 12.49252], [41.890906, 12.492744], [41.890846, 12.492954], [41.890749, 12.493175], [41.890571, 12.493529], [41.890501, 12.493629], [41.890429, 12.493694], [41.890307, 12.493741], [41.89016, 12.493717], [41.889967, 12.493622], [41.889848, 12.493564], [41.889879, 12.493453], [41.889834, 12.49337], [41.889742, 12.493263], [41.889634, 12.493107], [41.889568, 12.492974], [41.889523, 12.492806], [41.889471, 12.49242], [41.889487, 12.492192], [41.889472, 12.491963], [41.88952, 12.491793], [41.889599, 12.491572], [41.889613, 12.491548], [41.889739, 12.491349], [41.889867, 12.491208], [41.890029, 12.491132], [41.890183, 12.491101], [41.890307, 12.491094], [41.890431, 12.491109], [41.89051, 12.491131], [41.890649, 12.491204], [41.890763, 12.491309], [41.890837, 12.491412], [41.890885, 12.491499], [41.890913, 12.491437], [41.890913, 12.491437], [41.890922, 12.49142], [41.89099, 12.491177], [41.891059, 12.490929], [41.891098, 12.490779], [41.891203, 12.490416], [41.891262, 12.490453], [41.891285, 12.490382], [41.891319, 12.490307], [41.891614, 12.489782], [41.89175, 12.489541], [41.891777, 12.489494], [41.892009, 12.489079], [41.892476, 12.488249], [41.892494, 12.488267], [41.892538, 12.48831], [41.892713, 12.487955], [41.892929, 12.487574], [41.892965, 12.487492], [41.892991, 12.487407], [41.893042, 12.487289], [41.893077, 12.487226], [41.893161, 12.487074], [41.893291, 12.486887], [41.89347, 12.486677], [41.893734, 12.486316], [41.893883, 12.486048], [41.894083, 12.485696], [41.894604, 12.484746], [41.894515, 12.48461], [41.894516, 12.484606], [41.894515, 12.48461], [41.894279, 12.484288], [41.894211, 12.484232], [41.894167, 12.484212], [41.894083, 12.484188], [41.894039, 12.484183], [41.894036, 12.484165], [41.894024, 12.484055], [41.894017, 12.483988], [41.89401, 12.483921], [41.893775, 12.483897], [41.89372, 12.483872], [41.893655, 12.483823], [41.893482, 12.483648], [41.893393, 12.483578], [41.893391, 12.483576], [41.893417, 12.483511], [41.893418, 12.483493], [41.893408, 12.483471], [41.893356, 12.483432], [41.893306, 12.483236], [41.893261, 12.483061], [41.893221, 12.483007], [41.893206, 12.482927], [41.893225, 12.482857], [41.89327, 12.482804], [41.893328, 12.482789], [41.89331, 12.482641], [41.893291, 12.482477], [41.893255, 12.482428], [41.893198, 12.482366], [41.893091, 12.48224], [41.892987, 12.482104], [41.892818, 12.481859], [41.892648, 12.481544], [41.892584, 12.481452], [41.892547, 12.481412], [41.892489, 12.481431], [41.892448, 12.481444], [41.892489, 12.481431], [41.892547, 12.481412], [41.892584, 12.481452], [41.892648, 12.481544], [41.892818, 12.481859], [41.892987, 12.482104], [41.893091, 12.48224], [41.893198, 12.482366], [41.893255, 12.482428], [41.893291, 12.482477], [41.89331, 12.482641], [41.893378, 12.482629], [41.893403, 12.482634], [41.89345, 12.482661], [41.893472, 12.482612], [41.893776, 12.48196], [41.89378, 12.481954], [41.893821, 12.481986], [41.893838, 12.481984], [41.893862, 12.481982], [41.893941, 12.481987], [41.893943, 12.481997], [41.894316, 12.482148], [41.894525, 12.482249], [41.894551, 12.482245], [41.894583, 12.482271], [41.894605, 12.482303], [41.894624, 12.482274], [41.894649, 12.482263], [41.894655, 12.482283], [41.894913, 12.482179], [41.894952, 12.482167], [41.894988, 12.482166], [41.895044, 12.482169], [41.895083, 12.482181], [41.895154, 12.482218], [41.895183, 12.482242], [41.895241, 12.482312], [41.895287, 12.482403], [41.8953, 12.482443], [41.895337, 12.482433], [41.895365, 12.482447], [41.895374, 12.482461], [41.895397, 12.482556], [41.895441, 12.482741], [41.895472, 12.482871], [41.895496, 12.482968], [41.895493, 12.483003], [41.89551, 12.48301], [41.895556, 12.483025], [41.895727, 12.483108], [41.895742, 12.483115], [41.895753, 12.483076], [41.895766, 12.483057], [41.895965, 12.482962], [41.895974, 12.482994], [41.895985, 12.482988], [41.896012, 12.482973], [41.896041, 12.482957], [41.896053, 12.482951], [41.896047, 12.482929], [41.896099, 12.482902], [41.896639, 12.482657], [41.896665, 12.48266], [41.896715, 12.482956], [41.89677, 12.48335], [41.896777, 12.483385], [41.896884, 12.483348], [41.897037, 12.483359], [41.897111, 12.48334], [41.897656, 12.483081], [41.898438, 12.482743], [41.89846, 12.482829], [41.898495, 12.482925], [41.898603, 12.483157], [41.89934, 12.483082], [41.899264, 12.482985], [41.899617, 12.482842], [41.900185, 12.482578], [41.900438, 12.482469], [41.900481, 12.48245], [41.900509, 12.482481], [41.900567, 12.482722], [41.900724, 12.483129], [41.900713, 12.483133], [41.900724, 12.483129], [41.900567, 12.482722], [41.900509, 12.482481], [41.900481, 12.48245], [41.900433, 12.482309], [41.900327, 12.481816], [41.900132, 12.480897], [41.900112, 12.480804], [41.900068, 12.480823], [41.900063, 12.480791], [41.900013, 12.48048], [41.899996, 12.47221], [41.899964, 12.479825], [41.899964, 12.479789], [41.899983, 12.479603], [41.899968, 12.47919], [41.89988, 12.478975], [41.899791, 12.4788], [41.899734, 12.478716], [41.899684, 12.478747], [41.89964, 12.478593], [41.899568, 12.478446], [41.899538, 12.478399], [41.899526, 12.478355], [41.899459, 12.477985], [41.899356, 12.477287], [41.899305, 12.477145], [41.899154, 12.477036], [41.899149, 12.47692], [41.899142, 12.476805], [41.899141, 12.47678], [41.899133, 12.476635], [41.899439, 12.476602], [41.899522, 12.476592], [41.899523, 12.476505], [41.89952, 12.476439], [41.899403, 12.47512], [41.899398, 12.475029], [41.899395, 12.474837], [41.899394, 12.474063], [41.899393, 12.474049], [41.899393, 12.474014], [41.899392, 12.473993], [41.899387, 12.473856], [41.899385, 12.473791], [41.899384, 12.473779], [41.899142, 12.473804], [41.899123, 12.473395], [41.899117, 12.473313], [41.899112, 12.47325], [41.899172, 12.473037], [41.899209, 12.47291], [41.899206, 12.472847], [41.899811, 12.472797], [41.899805, 12.472696], [41.899803, 12.472246], [41.899829, 12.472245], [41.899953, 12.47225], [41.899983, 12.472183], [41.900078, 12.47214], [41.900229, 12.472126], [41.900453, 12.472128], [41.900462, 12.472084], [41.900469, 12.471939], [41.900477, 12.471738], [41.900478, 12.471615], [41.900474, 12.471325], [41.900477, 12.470922], [41.900476, 12.470898], [41.900477, 12.470845], [41.900481, 12.470659], [41.900481, 12.470625], [41.900478, 12.470198], [41.900486, 12.469834], [41.900504, 12.469499], [41.900508, 12.469427], [41.900527, 12.469011], [41.900527, 12.468988], [41.900527, 12.468963], [41.900538, 12.468503], [41.900535, 12.468172], [41.900548, 12.467653], [41.900554, 12.467504], [41.900555, 12.467415], [41.900555, 12.467373], [41.900701, 12.467216], [41.900738, 12.467178], [41.90113, 12.466787], [41.901134, 12.466717], [41.901123, 12.466573], [41.901121, 12.466521], [41.901212, 12.466521], [41.901234, 12.466519], [41.901281, 12.466516], [41.901316, 12.466513], [41.901327, 12.466513], [41.901724, 12.466478], [41.902457, 12.466414], [41.902468, 12.466412], [41.902513, 12.46641], [41.90251, 12.466367], [41.902483, 12.465836], [41.902431, 12.465426], [41.902407, 12.465068], [41.902404, 12.464867], [41.902399, 12.464406], [41.902396, 12.464293], [41.902395, 12.464253], [41.902394, 12.464233], [41.902381, 12.463632], [41.902368, 12.463075], [41.902365, 12.462948], [41.90236, 12.462761], [41.902337, 12.462014], [41.902335, 12.461947], [41.902308, 12.460904], [41.902303, 12.460697], [41.902301, 12.460609], [41.902281, 12.459678], [41.902279, 12.459619], [41.902269, 12.459187], [41.902268, 12.459173], [41.902264, 12.458794], [41.902258, 12.45838], [41.902257, 12.458365], [41.902256, 12.458352], [41.902256, 12.458275], [41.902055, 12.458268], [41.901938, 12.458245], [41.901819, 12.458201], [41.901795, 12.458192], [41.901737, 12.458163], [41.90165, 12.458113], [41.901537, 12.458014], [41.901436, 12.457898], [41.90136, 12.45776], [41.901299, 12.457607], [41.90127, 12.457469], [41.901257, 12.457222], [41.901275, 12.457055], [41.901327, 12.456888], [41.901379, 12.456762], [41.901308, 12.456693], [41.901302, 12.45669], [41.901249, 12.456577], [41.901214, 12.456543], [41.901176, 12.456515], [41.901115, 12.456495], [41.900826, 12.456522], [41.900802, 12.456512], [41.900689, 12.456513], [41.900583, 12.456513], [41.900473, 12.456508], [41.900396, 12.456505], [41.900387, 12.456504], [41.900297, 12.456494], [41.900107, 12.45645], [41.900078, 12.456441], [41.900027, 12.456424], [41.899926, 12.456381], [41.899838, 12.456344], [41.899737, 12.456298], [41.899634, 12.456256], [41.89961, 12.456243], [41.899572, 12.456225], [41.899532, 12.456198], [41.899377, 12.456013], [41.899365, 12.455925], [41.899379, 12.455893], [41.899371, 12.455884], [41.899335, 12.455849], [41.899315, 12.455882], [41.899228, 12.455892], [41.899187, 12.455874], [41.899045, 12.455652], [41.898909, 12.455486], [41.898753, 12.455336], [41.898579, 12.455191], [41.898504, 12.455147], [41.898501, 12.45509], [41.898491, 12.454882], [41.898478, 12.454813], [41.897927, 12.455007], [41.897891, 12.454929], [41.897841, 12.454815], [41.897562, 12.454195], [41.897455, 12.453956], [41.897429, 12.453897], [41.896645, 12.454792], [41.896596, 12.454715], [41.896554, 12.454656], [41.896523, 12.454637], [41.896495, 12.454634], [41.896473, 12.454641], [41.896433, 12.454677], [41.896394, 12.454618], [41.89629, 12.454744]
+        ];
+
+        const PRONUNCIATIONS = [
+            { word: 'Buongiorno', phonetic: "Bwon-jor-no", simplified: 'Bwon-yor-no', meaning: 'Buenos días' },
+            { word: 'Buonasera', phonetic: "Bwo-na-se-ra", simplified: 'Bwo-na-se-ra', meaning: 'Buenas tardes' },
+            { word: 'Ciao', phonetic: "Chao", simplified: 'Chao', meaning: 'Hola / Adiós' },
+            { word: 'Per favore', phonetic: "Per fa-vo-re", simplified: 'Per fa-bo-re', meaning: 'Por favor' },
+            { word: 'Grazie', phonetic: "Grat-zye", simplified: 'Grat-sie', meaning: 'Gracias' },
+            { word: 'Prego', phonetic: "Pre-go", simplified: 'Pre-go', meaning: 'De nada / Adelante' },
+            { word: 'Scusi', phonetic: "Sku-zi", simplified: 'Sku-si', meaning: 'Perdone (formal)' },
+            { word: 'Il conto, per favore', phonetic: "Il kon-to", simplified: 'Il kon-to per fa-bo-re', meaning: 'La cuenta' },
+            { word: 'Dov\'è il bagno?', phonetic: "Do-ve il ba-nyo", simplified: 'Do-be il ba-nyo', meaning: '¿Dónde está el baño?' },
+            { word: 'Quanto costa?', phonetic: "Kwan-to kos-ta", simplified: 'Kwan-to kos-ta', meaning: '¿Cuánto cuesta?' },
+            { word: 'Un biglietto', phonetic: "Un bi-lye-to", simplified: 'Un bi-lye-to', meaning: 'Un billete' },
+            { word: 'Gelato', phonetic: "Je-la-to", simplified: 'Ye-la-to', meaning: 'Helado' },
+            { word: 'Binario', phonetic: "Bi-na-rio", simplified: 'Bi-na-rio', meaning: 'Vía / Andén' },
+            { word: 'Acqua naturale', phonetic: "Ak-kwa", simplified: 'A-kwa na-tu-ra-le', meaning: 'Agua sin gas' },
+            { word: 'Parla spagnolo?', phonetic: "Par-la spa-nyo-lo", simplified: 'Par-la spa-nyo-lo', meaning: '¿Habla español?' },
+            { word: 'Aiuto!', phonetic: "A-yu-to", simplified: 'A-yu-to', meaning: '¡Ayuda!' }
+        ];
+
+        const COLISEO_AUDIO_TEXT = `¡Bienvenido a Roma! Soy tu guía personal... Estás frente al Anfiteatro Flavio, el Coliseo. 1. Fachada Norte: Puedes ver las alturas originales con estilos dórico, jónico y corintio. 2. Sector Este: El Ludus Magnus, la escuela de gladiadores. 3. Sector Sur: Cicatrices del terremoto de 1349. 4. Sector Oeste: Arco de Constantino. Imagina a 50.000 espectadores rugiendo aquí hace 2000 años.`;
+
+        const INITIAL_ITINERARY = [
+            { id: '1', title: 'Llegada a Puerto', startTime: '07:00', endTime: '07:00', locationName: 'Muelle Civitavecchia', coords: COORDS.CIVITAVECCHIA_DOCK, description: 'Logística: El barco atraca. Sé de los primeros para evitar colas.', keyDetails: 'Dato: Civitavecchia fue fundada por Trajano en el siglo II.', priceEUR: 0, type: 'logistics', completed: false },
+            { id: '2', title: 'Shuttle a Largo della Pace', startTime: '07:15', endTime: '07:40', locationName: 'Muelle', coords: COORDS.CIVITAVECCHIA_DOCK, description: 'Logística: Toma el Shuttle gratuito al centro de servicios.', keyDetails: 'Ten a mano tus documentos de identidad.', priceEUR: 0, type: 'transport', completed: false },
+            { id: '3', title: 'Bus a la Estación', startTime: '08:09', endTime: '08:16', locationName: 'Largo della Pace', coords: COORDS.LARGODELAPACE, description: 'Logística: Bus urbano a la estación. Compra ticket BIRG (12€).', keyDetails: '¡Crítico!: Valida el ticket antes de subir al tren.', priceEUR: 12, type: 'transport', completed: false, notes: 'CRITICAL', googleMapsUrl: 'https://maps.app.goo.gl/6HVPmd9PuhR8zmbo7' },
+            { id: '4', title: 'Tren a Roma Termini', startTime: '08:36', endTime: '09:48', locationName: 'Civitavecchia', coords: COORDS.STAZIONE_CIVITAVECCHIA, description: 'Logística: Tren regional (RV) al centro.', keyDetails: 'Siéntate a la derecha para ver el mar.', priceEUR: 0, type: 'transport', completed: false, contingencyNote: "Próximo tren: 08:58." },
+            { id: '5', title: 'Metro al Coliseo', startTime: '10:00', endTime: '10:10', locationName: 'Roma Termini', coords: COORDS.TERMINI, description: 'Línea B (Azul) hacia Laurentina, parada Colosseo.', keyDetails: 'Construido sobre cimientos romanos.', priceEUR: 0, type: 'transport', completed: false },
+            { id: '6', title: 'Coliseo', startTime: '10:10', endTime: '10:30', locationName: 'Colosseo', coords: COORDS.COLOSSEO, description: 'El anfiteatro más grande del mundo antiguo.', keyDetails: 'Foto: Via Nicola Salvi.', priceEUR: 0, type: 'sightseeing', completed: false, audioGuideText: COLISEO_AUDIO_TEXT },
+            { id: '7', title: 'Arco de Constantino', startTime: '10:30', endTime: '10:55', locationName: 'Arco di Costantino', coords: COORDS.ARCO_CONSTANTINO, description: 'Celebración de la victoria en Puente Milvio.', keyDetails: 'Utiliza relieves reciclados de otros monumentos.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '8', title: 'Fori Imperiali I', startTime: '10:55', endTime: '11:10', locationName: 'Via dei Fori Imperiali', coords: COORDS.FORI_IMPERIALI, description: 'Foros de Augusto y Nerva.', keyDetails: 'Mapas de mármol del imperio.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '9', title: 'Fori Imperiali II', startTime: '11:10', endTime: '11:20', locationName: 'Via dei Fori Imperiali', coords: COORDS.FORI_IMPERIALI, description: 'Foro y Columna de Trajano.', keyDetails: 'Bajorrelieve en espiral único.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '10', title: 'Loba Capitolina', startTime: '11:20', endTime: '11:30', locationName: 'Campidoglio', coords: COORDS.CAMPIDOGLIO, description: 'Símbolo de la fundación (753 a.C.).', keyDetails: 'La de la calle es una copia.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '11', title: 'Plaza Campidoglio', startTime: '11:30', endTime: '11:40', locationName: 'Campidoglio', coords: COORDS.CAMPIDOGLIO, description: 'Diseño de Miguel Ángel.', keyDetails: 'Estatua de Marco Aurelio.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '12', title: 'Coloso Constantino', startTime: '11:40', endTime: '11:50', locationName: 'Museos Capitolinos', coords: COORDS.CAMPIDOGLIO, description: 'Restos de una estatua de 12 metros.', keyDetails: 'Cabeza de 2.6 metros.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '13', title: 'Vittoriano', startTime: '11:50', endTime: '12:00', locationName: 'Piazza Venezia', coords: COORDS.VITTORIANO, description: 'La "Máquina de Escribir".', keyDetails: 'Tumba del Soldado Desconocido.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '14', title: 'Fontana di Trevi', startTime: '12:00', endTime: '12:45', locationName: 'Trevi', coords: COORDS.TREVI, description: 'Lanza una moneda para volver.', keyDetails: 'Prohibido comer cerca.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '15', title: 'Panteón', startTime: '12:45', endTime: '12:55', locationName: 'Panteón', coords: COORDS.PANTHEON, description: 'Cúpula de hormigón más grande.', keyDetails: 'Óculo central de 9 metros.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '16', title: 'Plaza Navona', startTime: '12:55', endTime: '13:10', locationName: 'Navona', coords: COORDS.NAVONA, description: 'Antiguo Estadio de Domiciano.', keyDetails: 'Fuente de los Cuatro Ríos.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '17', title: 'Puente Sant\'Angelo', startTime: '13:10', endTime: '13:30', locationName: 'Ponte Sant\'Angelo', coords: COORDS.SANT_ANGELO, description: 'Ángeles diseñados por Bernini.', keyDetails: 'Instrumentos de la Pasión.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '18', title: 'Castillo Sant\'Angelo', startTime: '13:30', endTime: '13:45', locationName: 'Castel Sant\'Angelo', coords: COORDS.SANT_ANGELO, description: 'Mausoleo y fortaleza papal.', keyDetails: 'Pasillo secreto al Vaticano.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '19', title: 'San Pedro', startTime: '13:45', endTime: '14:10', locationName: 'Vaticano', coords: COORDS.S_PIETRO, description: 'El estado más pequeño del mundo.', keyDetails: 'Columnata de Bernini.', priceEUR: 0, type: 'sightseeing', completed: false },
+            { id: '20', title: 'Ruta a Estación S. Pietro', startTime: '14:10', endTime: '14:40', locationName: 'San Pietro', coords: COORDS.S_PIETRO, description: 'Caminata a la estación cercana.', keyDetails: 'Ahorra tiempo comparado con Termini.', priceEUR: 0, type: 'logistics', completed: false },
+            { id: '21', title: 'Tren Regreso', startTime: '15:02', endTime: '16:02', locationName: 'S. Pietro', coords: COORDS.STAZIONE_S_PIETRO, description: 'Garantía para llegar a tiempo.', keyDetails: 'Ticket BIRG sigue siendo válido.', priceEUR: 0, type: 'transport', completed: false, notes: 'CRITICAL' },
+            { id: '22', title: 'Bus a Shuttle', startTime: '16:10', endTime: '16:20', locationName: 'Estación Civitavecchia', coords: COORDS.STAZIONE_CIVITAVECCHIA, description: 'Bus naranja al hub.', keyDetails: 'Mismo ticket BIRG.', priceEUR: 0, type: 'transport', completed: false },
+            { id: '23', title: 'Shuttle al Barco', startTime: '16:30', endTime: '16:50', locationName: 'Largo della Pace', coords: COORDS.LARGODELAPACE, description: 'Bus con logo del crucero.', keyDetails: 'Trayecto final al muelle.', priceEUR: 0, type: 'transport', completed: false },
+            { id: '24', title: 'Límite Embarque', startTime: '18:30', endTime: '18:30', locationName: 'Muelle', coords: COORDS.CIVITAVECCHIA_DOCK, description: 'Escanea tarjeta ahora.', keyDetails: 'Las pasarelas se retiran.', priceEUR: 0, type: 'logistics', completed: false, notes: 'CRITICAL' },
+            { id: '25', title: 'Salida Puerto', startTime: '19:00', endTime: '19:00', locationName: 'Civitavecchia', coords: COORDS.CIVITAVECCHIA_DOCK, description: 'Zarpe del barco.', keyDetails: 'Atardecer sobre el Tirreno.', priceEUR: 0, type: 'logistics', completed: false }
+        ];
+
+        // --- UTILIDADES (Desde services/utils.ts) ---
+        const calculateDuration = (startStr, endStr) => {
+          const [startH, startM] = startStr.split(':').map(Number);
+          const [endH, endM] = endStr.split(':').map(Number);
+          let diffMins = (endH * 60 + endM) - (startH * 60 + startM);
+          if (diffMins < 0) diffMins += 24 * 60; 
+          const hours = Math.floor(diffMins / 60);
+          const minutes = diffMins % 60;
+          if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+          if (hours > 0) return `${hours}h`;
+          return `${minutes} min`;
+        };
+
+        const calculateTimeProgress = (startTime, endTime) => {
+          const now = new Date();
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+          const [startH, startM] = startTime.split(':').map(Number);
+          const startMinutes = startH * 60 + startM;
+          const [endH, endM] = endTime.split(':').map(Number);
+          const endMinutes = endH * 60 + endM;
+          if (currentMinutes < startMinutes) return 0;
+          if (currentMinutes >= endMinutes) return 100;
+          const totalRange = endMinutes - startMinutes;
+          const elapsed = currentMinutes - startMinutes;
+          return Math.min(100, Math.max(0, (elapsed / totalRange) * 100));
+        };
+
+        // --- COMPONENTES ---
+
+        const Timeline = ({ itinerary, onToggleComplete, onLocate, userLocation, onOpenAudioGuide }) => {
+          const [, setTick] = useState(0);
+          useEffect(() => {
+            const timer = setInterval(() => setTick(t => t + 1), 60000);
+            return () => clearInterval(timer);
+          }, []);
+
+          const calculateGap = (endStrPrev, startStrNext) => {
+            const [endH, endM] = endStrPrev.split(':').map(Number);
+            const [startH, startM] = startStrNext.split(':').map(Number);
+            return (startH * 60 + startM) - (endH * 60 + endM);
+          };
+
+          return (
+            <div className="pb-24 px-4 pt-4 max-w-lg mx-auto">
+              <div className="flex justify-between items-end mb-6">
+                <h2 className="text-2xl font-bold text-red-800 uppercase tracking-tight">Itinerario Roma</h2>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">Sync</span>
+              </div>
+              <div className="relative border-l-2 border-slate-200 ml-3 space-y-8">
+                {itinerary.map((act, idx) => {
+                  const prevAct = idx > 0 ? itinerary[idx - 1] : null;
+                  const gap = prevAct ? calculateGap(prevAct.endTime, act.startTime) : 0;
+                  const actProgress = calculateTimeProgress(act.startTime, act.endTime);
+                  const gapProgress = prevAct ? calculateTimeProgress(prevAct.endTime, act.startTime) : 0;
+                  
+                  return (
+                    <React.Fragment key={act.id}>
+                      {gap > 0 && (
+                        <div className="relative ml-0 my-8">
+                            <div className="absolute left-[-2px] top-[-20px] bottom-[-20px] border-l-2 border-dashed border-slate-300"></div>
+                            <div className="ml-6 flex items-center">
+                                <div className="bg-white/80 backdrop-blur-sm px-4 py-3 rounded-2xl border border-slate-100 flex flex-col shadow-sm w-full max-w-[240px]">
+                                    <div className="flex items-center mb-2">
+                                        <div className="bg-slate-100 p-1.5 rounded-full mr-3 border border-slate-200"><Clock size={12} className="text-slate-600" /></div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Intervalo</span>
+                                            <span className="text-[10px] font-bold text-slate-600 uppercase">{gap} min — {gap > 30 ? 'Libre' : 'Traslado'}</span>
+                                        </div>
+                                    </div>
+                                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-slate-400" style={{ width: `${gapProgress}%` }}></div></div>
+                                </div>
+                            </div>
+                        </div>
+                      )}
+                      <div className="mb-8 ml-6 relative">
+                        <div onClick={() => onToggleComplete(act.id)} className={`absolute -left-[31px] top-0 rounded-full bg-white border-2 cursor-pointer z-10 ${act.completed ? 'border-emerald-500 text-emerald-500 shadow-sm' : 'border-red-600 text-red-600 shadow-sm'}`}>
+                            {act.completed ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                        </div>
+                        <div className={`rounded-2xl border shadow-sm transition-all overflow-hidden bg-white ${act.notes === 'CRITICAL' ? 'border-red-500 bg-red-50' : act.completed ? 'opacity-70 border-emerald-500' : 'border-slate-100'}`}>
+                            <div className="w-full h-1.5 bg-slate-50 overflow-hidden"><div className={`h-full ${actProgress === 100 ? 'bg-slate-300' : 'bg-red-600'}`} style={{ width: `${actProgress}%` }}></div></div>
+                            <div className="p-5">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div>
+                                    <div className="flex items-center space-x-2 mb-2">
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">{act.startTime} - {act.endTime}</span>
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">{calculateDuration(act.startTime, act.endTime)}</span>
+                                    </div>
+                                    <h3 className="font-bold text-lg text-gray-800 leading-tight">{act.title}</h3>
+                                  </div>
+                                  {act.notes === 'CRITICAL' && <AlertTriangle className="text-red-500 animate-pulse" size={20} />}
+                                </div>
+                                <div className="mb-3 text-sm text-gray-600 flex items-center flex-wrap gap-1"><MapPin size={14} className="mr-0.5 text-red-500"/> {act.locationName}</div>
+                                <p className="text-sm text-gray-600 mb-4">{act.description}</p>
+                                <div className="bg-slate-50 p-3 rounded-xl text-sm italic border-l-4 border-red-500 mb-4">"{act.keyDetails}"</div>
+                                {act.contingencyNote && <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 my-3 flex items-start gap-2 shadow-sm"><AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={16} /><div><p className="text-[10px] font-extrabold text-amber-800 uppercase tracking-tighter mb-1">CONTINGENCIA</p><p className="text-[11px] text-amber-950 font-medium">{act.contingencyNote}</p></div></div>}
+                                <div className="flex flex-wrap items-center gap-2 mt-3 pt-4 border-t border-slate-50">
+                                    <button onClick={() => onLocate(act.coords)} className="flex items-center text-[10px] font-bold text-red-700 bg-red-50 px-3 py-2 rounded-xl border border-red-100 shadow-sm"><Navigation size={12} className="mr-1.5" /> UBICACIÓN</button>
+                                    {act.audioGuideText && <button onClick={() => onOpenAudioGuide(act)} className="flex items-center text-[10px] font-bold text-white bg-red-800 px-3 py-2 rounded-xl shadow-md"><Headphones size={12} className="mr-1.5" /> AUDIOGUÍA</button>}
+                                    {act.googleMapsUrl && <a href={act.googleMapsUrl} target="_blank" className="flex items-center text-[10px] font-bold text-white bg-emerald-600 px-3 py-2 rounded-xl"><ExternalLink size={12} className="mr-1.5" /> G. MAPS</a>}
+                                    <button onClick={() => onToggleComplete(act.id)} className={`ml-auto px-3 py-2 rounded-xl text-[10px] font-bold uppercase transition-all ${act.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-800 text-white'}`}>{act.completed ? 'Hecho' : 'Check'}</button>
+                                </div>
+                            </div>
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        };
+
+        const MapComponent = ({ activities, userLocation, focusedLocation }) => {
+            const mapContainerRef = useRef(null);
+            const mapInstanceRef = useRef(null);
+            const layersRef = useRef([]);
+
+            useEffect(() => {
+                if (!mapContainerRef.current || mapInstanceRef.current) return;
+                const map = L.map(mapContainerRef.current, { zoomControl: false }).setView([41.8902, 12.4922], 14);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+                mapInstanceRef.current = map;
+                return () => { map.remove(); mapInstanceRef.current = null; };
+            }, []);
+
+            useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
+                layersRef.current.forEach(layer => layer.remove());
+                layersRef.current = [];
+
+                activities.forEach(act => {
+                    const marker = L.marker([act.coords.lat, act.coords.lng]).addTo(map);
+                    marker.bindPopup(`<div style="padding:10px;"><h3 style="margin:0;font-size:14px;color:#991B1B;">${act.title}</h3><p style="margin:5px 0 0;font-size:11px;">${act.locationName}</p></div>`);
+                    layersRef.current.push(marker);
+                });
+
+                L.polyline(ROMAN_WALK_TRACK, { color: '#991B1B', weight: 4, opacity: 0.7, dashArray: '8, 12' }).addTo(map);
+                
+                if (userLocation) {
+                    const uMarker = L.circleMarker([userLocation.lat, userLocation.lng], { radius: 8, color: 'white', weight: 3, fillColor: '#3b82f6', fillOpacity: 1 }).addTo(map);
+                    layersRef.current.push(uMarker);
+                }
+            }, [activities, userLocation]);
+
+            useEffect(() => {
+                if (mapInstanceRef.current && focusedLocation) mapInstanceRef.current.flyTo([focusedLocation.lat, focusedLocation.lng], 16);
+            }, [focusedLocation]);
+
+            return <div ref={mapContainerRef} className="w-full h-full z-0" />;
+        };
+
+        const Budget = ({ itinerary }) => {
+            const [currency, setCurrency] = useState('EUR');
+            const total = itinerary.reduce((acc, curr) => acc + curr.priceEUR, 0);
+            return (
+                <div className="pb-24 px-4 pt-6 max-w-lg mx-auto h-full overflow-y-auto no-scrollbar">
+                    <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-red-800 flex items-center"><Wallet className="mr-2" /> Presupuesto</h2></div>
+                    <div className="bg-red-800 rounded-2xl p-6 text-white shadow-lg mb-8">
+                        <p className="text-red-100 text-sm uppercase mb-1">Total Estimado</p>
+                        <div className="text-4xl font-bold">€{total}</div>
+                        <p className="text-xs mt-2 italic opacity-80">BIRG Ticket (Civitavecchia-Roma)</p>
+                    </div>
+                    <div className="bg-white rounded-lg border shadow-sm divide-y">
+                        {itinerary.filter(a => a.priceEUR > 0).map(act => (
+                            <div key={act.id} className="p-4 flex justify-between">
+                                <div><p className="text-sm font-bold">{act.title}</p><p className="text-xs text-gray-500 capitalize">{act.type}</p></div>
+                                <div className="font-bold">€{act.priceEUR}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const Guide = ({ userLocation }) => {
+            const [playing, setPlaying] = useState(null);
+            const play = (word) => {
+                const ut = new SpeechSynthesisUtterance(word);
+                ut.lang = 'it-IT';
+                ut.onend = () => setPlaying(null);
+                setPlaying(word);
+                window.speechSynthesis.speak(ut);
+            };
+            const handleSOS = () => {
+                const msg = `¡SOS! Necesito ayuda en Roma. Ubicación: ${userLocation ? `https://maps.google.com/?q=${userLocation.lat},${userLocation.lng}` : 'GPS no disponible'}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+            };
+            return (
+                <div className="pb-32 px-4 pt-6 max-w-lg mx-auto h-full overflow-y-auto no-scrollbar">
+                    <h2 className="text-2xl font-bold text-red-800 mb-6 uppercase">Guía Roma</h2>
+                    <div className="mb-8 bg-red-600 rounded-[2rem] p-6 shadow-xl text-white relative">
+                        <div className="flex items-center mb-3"><PhoneCall size={24} className="mr-3 animate-pulse" /><h3 className="font-black text-lg uppercase">SOS WHATSAPP</h3></div>
+                        <p className="text-xs mb-6">Envía tu GPS exacto si te pierdes.</p>
+                        <button onClick={handleSOS} className="w-full py-4 bg-white text-red-700 font-black rounded-2xl text-sm uppercase">Enviar SOS</button>
+                    </div>
+                    <h3 className="text-lg font-bold mb-4 flex items-center uppercase"><Languages size={20} className="mr-2.5 text-red-600"/> Italiano Básico</h3>
+                    <div className="bg-white rounded-3xl shadow-md border overflow-hidden">
+                        {PRONUNCIATIONS.map((item, idx) => (
+                            <div key={idx} className="p-5 flex justify-between items-center border-b last:border-0">
+                                <div>
+                                    <div className="flex items-center gap-3"><p className="font-black text-red-900 text-lg">{item.word}</p><button onClick={() => play(item.word)} className={`p-2 rounded-full ${playing === item.word ? 'bg-red-100 text-red-600' : 'bg-slate-100'}`}><Volume2 size={16}/></button></div>
+                                    <p className="text-xs text-slate-500 italic">"{item.simplified}"</p>
+                                </div>
+                                <div className="text-right ml-4"><p className="text-[10px] font-black text-slate-500 bg-slate-100 px-3 py-1 rounded-full uppercase border">{item.meaning}</p></div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [itinerary, setItinerary] = useState(INITIAL_ITINERARY);
+            const [activeTab, setActiveTab] = useState('timeline');
+            const [userLocation, setUserLocation] = useState(null);
+            const [mapFocus, setMapFocus] = useState(null);
+            const [countdown, setCountdown] = useState('--h --m --s');
+            const [audioActivity, setAudioActivity] = useState(null);
+            const [isPlaying, setIsPlaying] = useState(false);
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    const now = new Date();
+                    const [h, m] = SHIP_ONBOARD_TIME.split(':').map(Number);
+                    const target = new Date();
+                    target.setHours(h, m, 0, 0);
+                    const diff = target.getTime() - now.getTime();
+                    if (diff <= 0) setCountdown("¡A BORDO!");
+                    else {
+                        const hr = Math.floor(diff / 3600000);
+                        const mn = Math.floor((diff % 3600000) / 60000);
+                        const sc = Math.floor((diff % 60000) / 1000);
+                        setCountdown(`${hr.toString().padStart(2,'0')}h ${mn.toString().padStart(2,'0')}m ${sc.toString().padStart(2,'0')}s`);
+                    }
+                }, 1000);
+                if (navigator.geolocation) navigator.geolocation.watchPosition(pos => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }));
+                setTimeout(() => { const l = document.getElementById('initial-loader'); if(l) l.style.opacity = '0', setTimeout(() => l.remove(), 400); }, 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            return (
+                <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
+                    <header className="bg-red-950 text-white p-4 shadow-xl z-20 flex justify-between items-center">
+                        <div className="flex items-center"><Anchor className="mr-3 text-red-500" size={24} /><div><h1 className="font-black text-[10px] uppercase tracking-widest text-red-400">Escala Roma</h1><p className="text-[12px] font-bold">16 Abril 2026</p></div></div>
+                        <div className="text-right"><span className="text-[8px] font-black uppercase text-red-500">Cuenta atrás</span><div className="text-lg font-black font-mono text-red-400">{countdown}</div></div>
+                    </header>
+                    <main className="flex-1 relative overflow-hidden">
+                        {activeTab === 'timeline' && <div className="h-full overflow-y-auto no-scrollbar"><Timeline itinerary={itinerary} onToggleComplete={(id) => setItinerary(itinerary.map(a => a.id === id ? {...a, completed: !a.completed} : a))} onLocate={c => {setMapFocus(c); setActiveTab('map');}} userLocation={userLocation} onOpenAudioGuide={setAudioActivity} /></div>}
+                        {activeTab === 'map' && <MapComponent activities={itinerary} userLocation={userLocation} focusedLocation={mapFocus} />}
+                        {activeTab === 'budget' && <Budget itinerary={itinerary} />}
+                        {activeTab === 'guide' && <Guide userLocation={userLocation} />}
+                    </main>
+                    {audioActivity && (
+                      <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+                          <div className="p-6 bg-red-950 text-white flex justify-between items-center">
+                            <div className="flex items-center gap-3"><Headphones size={24}/><h2 className="font-bold text-lg">{audioActivity.title}</h2></div>
+                            <button onClick={() => { window.speechSynthesis.cancel(); setAudioActivity(null); setIsPlaying(false); }}><X /></button>
+                          </div>
+                          <div className="p-8 overflow-y-auto text-sm italic">"{audioActivity.audioGuideText}"</div>
+                          <div className="p-8 bg-slate-50 flex items-center gap-6">
+                            <button onClick={() => { 
+                                if (isPlaying) { window.speechSynthesis.cancel(); setIsPlaying(false); }
+                                else { 
+                                    const ut = new SpeechSynthesisUtterance(audioActivity.audioGuideText);
+                                    ut.lang = 'es-ES'; ut.onend = () => setIsPlaying(false);
+                                    window.speechSynthesis.speak(ut); setIsPlaying(true);
+                                }
+                            }} className={`w-16 h-16 rounded-full flex items-center justify-center ${isPlaying ? 'bg-red-100 text-red-600' : 'bg-red-800 text-white'}`}>
+                                {isPlaying ? <Square size={24} /> : <Play size={24} className="ml-1" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <nav className="bg-white border-t h-20 flex justify-around items-center px-4 pb-safe shrink-0">
+                        {[
+                          { id: 'timeline', icon: CalendarClock, label: 'Itinerario' },
+                          { id: 'map', icon: MapIcon, label: 'Mapa' },
+                          { id: 'budget', icon: Wallet, label: 'Gastos' },
+                          { id: 'guide', icon: BookOpen, label: 'Guía' }
+                        ].map(t => (
+                          <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex flex-col items-center w-full ${activeTab === t.id ? 'text-red-800' : 'text-slate-400'}`}>
+                            <div className={`p-2 rounded-xl mb-1 ${activeTab === t.id ? 'bg-red-50' : ''}`}><t.icon size={22} /></div>
+                            <span className="text-[9px] font-black uppercase tracking-widest">{t.label}</span>
+                          </button>
+                        ))}
+                    </nav>
+                </div>
+            );
+        };
+
+        createRoot(document.getElementById('root')).render(<App />);
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Usamos './' para que sea relativo al directorio actual del repo
-                navigator.serviceWorker.register('./service-worker.js', { scope: './' })
-                .then(registration => {
-                    console.log('PWA: Service Worker registrado con éxito en scope:', registration.scope);
-                })
-                .catch(error => {
-                    console.error('PWA: Error crítico en registro de SW:', error);
-                });
+                navigator.serviceWorker.register('./service-worker.js');
             });
         }
     </script>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script type="module" src="./index.tsx"></script>
 </body>
 </html>

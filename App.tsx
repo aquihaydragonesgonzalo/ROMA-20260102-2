@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, AppTab, Coordinates } from './types.ts';
-import { INITIAL_ITINERARY, SHIP_ONBOARD_TIME } from './constants.ts';
-import Timeline from './components/Timeline.tsx';
-import Budget from './components/Budget.tsx';
-import Guide from './components/Guide.tsx';
-import MapComponent from './components/Map.tsx';
+import { Activity, AppTab, Coordinates } from './types';
+import { INITIAL_ITINERARY, SHIP_ONBOARD_TIME } from './constants';
+import Timeline from './components/Timeline';
+import Budget from './components/Budget';
+import Guide from './components/Guide';
+import MapComponent from './components/Map';
 import { CalendarClock, Map as MapIcon, Wallet, BookOpen, Anchor, Headphones, X, Play, Square } from 'lucide-react';
 
 const STORAGE_KEY = 'roma_guide_v6_storage';

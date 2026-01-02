@@ -1,4 +1,4 @@
-import { Coordinates } from "../types";
+import { Coordinates } from "../types.ts";
 
 export const calculateDistance = (coord1: Coordinates, coord2: Coordinates): number => {
   const R = 6371e3; // metres
@@ -48,9 +48,6 @@ export const calculateDuration = (startStr: string, endStr: string): string => {
   return `${minutes} min`;
 };
 
-/**
- * Calcula el progreso (0 a 100) entre un rango de tiempo y la hora actual.
- */
 export const calculateTimeProgress = (startTime: string, endTime: string): number => {
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();

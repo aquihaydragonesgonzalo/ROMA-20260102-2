@@ -2,7 +2,8 @@
   "name": "Guía Roma MSC 2026",
   "short_name": "Roma 2026",
   "description": "Itinerario y guía personal para la escala en Roma",
-  "start_url": ".",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#991B1B",
@@ -11,12 +12,14 @@
     {
       "src": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjMqIMsVcH4cJyBPns11EXgA9GU2G_GIKn8VZZ1xZdjE0YcbKxgP9RubrKKajMFpYoXOkkaRozSncgrDKTpgqR8rEJaRg6EabSfiifPpqA2YjgZ-n1MJgFjRgbM8XFMjRfU67P3XOM3gg6fOi-ffux-i08-BgUE69iuYzbNX-eeqrjQhI6LWK9lBvwSTno/s320/ROMA%20TRAVEL.jpg",
       "sizes": "192x192",
-      "type": "image/jpeg"
+      "type": "image/jpeg",
+      "purpose": "any"
     },
     {
       "src": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjMqIMsVcH4cJyBPns11EXgA9GU2G_GIKn8VZZ1xZdjE0YcbKxgP9RubrKKajMFpYoXOkkaRozSncgrDKTpgqR8rEJaRg6EabSfiifPpqA2YjgZ-n1MJgFjRgbM8XFMjRfU67P3XOM3gg6fOi-ffux-i08-BgUE69iuYzbNX-eeqrjQhI6LWK9lBvwSTno/s320/ROMA%20TRAVEL.jpg",
       "sizes": "512x512",
-      "type": "image/jpeg"
+      "type": "image/jpeg",
+      "purpose": "any"
     }
   ]
 }

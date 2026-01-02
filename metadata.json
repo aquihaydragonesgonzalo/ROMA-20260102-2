@@ -1,5 +1,5 @@
 {
-  "name": "GUIA ROMA 20260112 2",
+  "name": "GUIA ROMA CRUCERO",
   "description": "Tu asistente personal para la escala en Roma (Civitavecchia) el 16 de Abril de 2026. Itinerario detallado de 25 puntos, mapa con track real y control de gastos.",
   "requestFramePermissions": [
     "geolocation"

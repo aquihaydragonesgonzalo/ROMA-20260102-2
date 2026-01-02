@@ -1,65 +1,68 @@
-const CACHE_NAME = 'roma-v5-cache';
-const ASSETS = [
+const CACHE_NAME = 'roma-explorer-v6';
+const PRE_CACHE_RESOURCES = [
   './',
   './index.html',
   './manifest.json',
-  './index.tsx',
-  './App.tsx',
-  './types.ts',
-  './constants.ts',
-  './services/utils.ts',
-  './components/Timeline.tsx',
-  './components/Budget.tsx',
-  './components/Guide.tsx',
-  './components/Map.tsx'
+  'https://cdn.tailwindcss.com',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
 
-// Instalación: Cachear archivos base
+// Evento de Instalación
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS).catch(err => console.warn('Error en pre-cache:', err));
-    })
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(PRE_CACHE_RESOURCES))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Activación: Limpiar cachés antiguas
+// Evento de Activación
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
-    })
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(name => {
+          if (name !== CACHE_NAME) {
+            return caches.delete(name);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Interceptación de peticiones: Estrategia Network-First con Fallback a Caché
+// Estrategia de Fetch: Cache First con Network Fallback para recursos estáticos
+// Network First para archivos de lógica de la app (JS/TSX)
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
   event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        // Clonar y guardar en caché si la respuesta es válida
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(() => {
-        // Si falla la red (offline), intentar servir desde caché
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) return cachedResponse;
-          
-          // Si es una navegación y no hay caché, devolver index.html
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
+    caches.match(event.request).then(cachedResponse => {
+      if (cachedResponse) {
+        // Si está en caché, lo devolvemos pero intentamos actualizar la caché en segundo plano
+        fetch(event.request).then(networkResponse => {
+          if (networkResponse.status === 200) {
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, networkResponse));
           }
-        });
-      })
+        }).catch(() => {});
+        return cachedResponse;
+      }
+
+      return fetch(event.request).then(networkResponse => {
+        if (!networkResponse || networkResponse.status !== 200) return networkResponse;
+        
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+        return networkResponse;
+      }).catch(() => {
+        // Si falla todo y es una navegación, devolver index.html
+        if (event.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
+      });
+    })
   );
 });

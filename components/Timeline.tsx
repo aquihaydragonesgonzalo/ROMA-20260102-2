@@ -174,7 +174,7 @@ const Timeline: React.FC<TimelineProps> = ({ itinerary, onToggleComplete, onLoca
                                 className="flex items-center text-[10px] font-bold text-white bg-emerald-600 px-3 py-2 rounded-xl shadow-sm hover:bg-emerald-700"
                                 >
                                 <ExternalLink size={12} className="mr-1.5" />
-                                G. MAPS
+                                GOOGLE MAPS
                                 </a>
                             )}
                             
